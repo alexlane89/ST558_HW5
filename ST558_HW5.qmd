@@ -4,8 +4,6 @@ author: "Charles Lane"
 format: html
 editor: visual
 
-{r setup, include=FALSE}
-knitr::opts_chunk$set(message = TRUE, warning = TRUE) 
 ---
 
 ## Task 1 - Conceptual Questions
@@ -78,11 +76,13 @@ sum(is.na(heart$Cholesterol))
 
 > There are 918 total observations for this data set and 172 of them are missing Cholesterol measurements. I have removed these NA'ed observations from the data set for future ease.
 
+> Additionally, the summary() function is used to offer an overview of each variable/column's attributes.
+
 ```{r}
 heart_2 <- heart |>
   drop_na()
 
-str(heart_2)
+summary(heart_2)
 ```
 
 ####Sub-Task 2: Update Data
@@ -94,6 +94,8 @@ heart_3 <- heart_2 |>
     Heart_Disease = ifelse(HeartDisease == 0, "NO",
                            ifelse(HeartDisease == 1,  "YES", NA))) |>
   select(!HeartDisease & !ST_Slope)
+
+heart_3$Heart_Disease <- as.factor(heart_3$Heart_Disease)
 
 head(heart_3)
 ```
@@ -108,6 +110,13 @@ dum_df <- predict(dummies, newdata = heart_3)
 
 head(dum_df)
 ```
+> I'm not sure why the Warning that Heart_Disease is not a factor exists in the preceding output, because it was explicitly made so in preceding actions. A quick test was used to verify:
+
+```{r}
+is.factor(heart_3$Heart_Disease)
+```
+
+> At this point, I will continue with next steps and determine if there are any other warnings/errors which occur based on this variable's factor status.
 
 > Now to combine the resulting dum_df data set which includes the dummy columns to the original heart_3 data set into a heart_4 data set.
 
@@ -119,11 +128,51 @@ head(heart_4)
 
 ### Split the Data
 
-> Prior to fitting a model, we need to split the data into train and test data sets.
+> Prior to fitting a model, we need to split the data into train and test data sets. We can do this with the createDataParticion() function from the caret package. This includes at first setting the seed so that the random number generator used for random number generation/splitting from data sets can be reproducible.
 
 ```{r}
+#Set the seed so random number generation can be replicated.
+set.seed(90)
+trainIndex <- createDataPartition(heart_4$Heart_Disease, p = 0.7, list = FALSE)
+heartTrain <- heart_4[trainIndex, ]
+heartTest <- heart_4[-trainIndex, ]
 
 ```
 
+### Fitting using kNN
+
+> The first model used to fit the data will be the kNN model. Using the caret package, I first set a trainControl method. In this case, it is using repeated cross-validation. This means that a cross-validation step is carried out, in our case with 10 subsets, but the CV is also repeated. In our case, we will repeat 3 times and essentially end with an average of the results of the 3 repetitions.
+
+> This training control method is set as an object and entered as an argument for the ultimate goal in the train() function. This train() function is from the caret package and will be used to train the data set to determine an optimal k value.
+
+```{r}
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+set.seed(3333)
+knn_fit <- train(Heart_Disease ~., data = heartTrain, method = "knn",
+ trControl=trctrl,
+ preProcess = c("center", "scale"),
+ tuneGrid = data.frame(k = c(1:40)),
+ tuneLength = 10)
+```
+
+> Given the computational requirements of the above training, I'll setup a separate code chunk to show the knn_fit result:
+
+```{r}
+knn_fit
+```
+> The above result can now be tested using prediction and assessed for accuracy using the confusionMatrix() function. The first step is to actually generate a predicted observation dataframe based on our model fit.
+
+```{r}
+test_pred <- predict(knn_fit, newdata = heartTest)
+test_pred
+```
+
+> I'm not able to innately assess accuracy from that output, so here's the confusionMatrix function to help assess:
+
+```{r}
+confusionMatrix(test_pred, heartTest$Heart_Disease)
+```
+
+### Logistic Regression
 
 The `echo: false` option disables the printing of code (only output is displayed).
