@@ -1,0 +1,129 @@
+---
+title: "ST558_HW5"
+author: "Charles Lane"
+format: html
+editor: visual
+
+{r setup, include=FALSE}
+knitr::opts_chunk$set(message = TRUE, warning = TRUE) 
+---
+
+## Task 1 - Conceptual Questions
+
+### Question 1: What is the purpose of cross-validation when fitting a random forest model?
+> Selecting a random forest model will result in random predictors used in each bootstrap sample. Cross-validaation is used to determine the best number of predictors to use for the random forest input.
+
+### Question 2: Describe the Bagged Tree Algorithm
+> When given a sample set, using the bagged tree algorithm creates subset samples from the original sample called "bootstrap" samples. A model fit is then generated for each bootstrap sample as opposed to the overall sample, and the prediction selected is the average of all bootstrap model predictions generated for the set.
+
+### Question 3: What is meant by a General Linear Model?
+> Simply put, a General Linear Model is a linear regression model, which is used for samples with normal distributions and can use simple linear regression, or multiple linear regression.
+
+### Question 4: When fitting a multiple linear regression model, what does adding an interaction term do? That is, what does it allow the model to do differently as compared to when it is not included in the model?
+> An interaction term puts a limit on the values which can be attainable by the linear coefficients. Including an interaction team helps to identify which variable contributes most to variability.
+
+### Question 5: Why do we split our data into a training and test set?
+> If using the same data for both test & training, there is a risk of overtraining the underlying data, or fitting the model too perfectly to the explicit data set used to train. A separate test set is helpful in reducing a metric for error when predicting based on any dataset, not just the given set.
+
+## Task 2 - Fitting Models
+
+### EDA / Preparation
+
+> Load the requisite packages. In order to explore and clean the target data set, I will load tidyverse.
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(caret)
+```
+
+
+####Sub-Task 1: Understanding the Data:
+
+> I will start by reading in the 'heart' data from a .csv file downloaded and added to the R repository - "heart.csv". This file uses comma-delimited values, so the read_csv() function from 'readr' package can be used. The spec() function is used to reveal all columns in the dataset and show their data types.
+
+```{r}
+heart <- read_csv("heart.csv", col_names = TRUE)
+spec(heart)
+```
+
+> Now that the data has been read into an object, I will create a usable tibble.
+
+```{r}
+heart <- as_tibble(heart)
+head(heart)
+```
+
+> I would like to find the data columns which include NA values. I can use the is.na() function to determine this. I looped through a base vector called "NA_vec" which was simply constructed with column names matching those of the 'heart' tibble and vector values associated with each column number. Thus there will be the same number of entries in the vector as there are columns in the heart data set. The loop overwrites those base values with the results of a sum of each time is.na is TRUE within that column. The resulting NA_vec shows no NA values.
+
+```{r}
+NA_vec <- c(seq_along(heart))
+names(NA_vec) <- names(heart)
+
+for (i in seq_along(heart)) {
+  NA_vec[i] <- sum(is.na(heart[i]))
+}
+
+NA_vec
+```
+
+> While there are no NA values in the data set. Looking at the heart data set does show several values of 0 for cholesterol. Given that it is reasonable to assume no individual would have a cholesterol measurement of 0, these values can be considered missing, or functionally NA. I will replace these "0" values with NA to avoid confusion in the future.
+
+> The resulting count of how many Cholesterol measurements are then N/A'ed is calculated specifically for that column.
+
+```{r}
+heart$Cholesterol[heart$Cholesterol==0] <- NA
+
+sum(is.na(heart$Cholesterol))
+```
+
+> There are 918 total observations for this data set and 172 of them are missing Cholesterol measurements. I have removed these NA'ed observations from the data set for future ease.
+
+```{r}
+heart_2 <- heart |>
+  drop_na()
+
+str(heart_2)
+```
+
+####Sub-Task 2: Update Data
+> Given that my 'HeartDisease' variable has values of 0 & 1 & is a double() data type, I will update it to be a categorical variable 'Heart_Disease' with values of YES or NO, then remove the original 'HeartDisease' & 'STSlope' variables.
+
+```{r}
+heart_3 <- heart_2 |>
+  mutate(
+    Heart_Disease = ifelse(HeartDisease == 0, "NO",
+                           ifelse(HeartDisease == 1,  "YES", NA))) |>
+  select(!HeartDisease & !ST_Slope)
+
+head(heart_3)
+```
+
+#### Sub-Task 3: Create numeric variables
+
+> For future tasks (using KNN to predict), numeric values are necessary for each predictor. To address my current data set's character variables, I will use the caret package's dummyVars() & predict() functions to create representative numeric variables for several character columns, i.e. Sex, ExerciseAngina, ChestPainType, and RestingECG.
+
+```{r}
+dummies <- dummyVars(Heart_Disease ~ Sex + ExerciseAngina + ChestPainType + RestingECG, data = heart_3)
+dum_df <- predict(dummies, newdata = heart_3)
+
+head(dum_df)
+```
+
+> Now to combine the resulting dum_df data set which includes the dummy columns to the original heart_3 data set into a heart_4 data set.
+
+```{r}
+heart_4 <- data.frame(heart_3, dum_df)
+
+head(heart_4)
+```
+
+### Split the Data
+
+> Prior to fitting a model, we need to split the data into train and test data sets.
+
+```{r}
+
+```
+
+
+The `echo: false` option disables the printing of code (only output is displayed).
