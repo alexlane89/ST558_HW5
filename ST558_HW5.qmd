@@ -174,5 +174,64 @@ confusionMatrix(test_pred, heartTest$Heart_Disease)
 ```
 
 ### Logistic Regression
+> Eventually, I would like to be able to compare several different prediction models for supervised learning. Given that the data set in question is attempting to predict a factor outcome of whether an individual has heart disease or not. The next step in this process is to use the previously processed data set and fit several different logistic regression models to it.
 
-The `echo: false` option disables the printing of code (only output is displayed).
+> For this analysis, variables can be characters (i.e. dummy variables are not necessary), so I will start with the "heart_3" data set, as opposed to the "heart_4" set used for the kNN investigation.
+
+> The three models I will use are: /
+> 1) Age
+> 2) Age and Cholesterol, with interaction effects
+> 3) Age, Cholesterol, and Sex, with interaction effects
+
+> Before beginning, I'd like to construct a plot with Age vs the proportion of observations having Heart Disease. While Age feels like a reasonable assumption to show a correlation to Heart Disease status, I'd like to visualize it first. This plot requires using 'heart_2', which was pre-factorization of Heart Disease variable, because the proportion requires doubles to be calculated.
+
+```{r}
+distSum <- heart_2 |>
+  group_by(Age) |>
+  summarize(propDisease = mean(HeartDisease), n = n())
+
+ggplot(distSum, aes(x=Age, y=propDisease, size = n)) +
+  geom_point(stat = "identity", aes(size = n))
+```
+
+> It does seem like there's somewhat of a linear relationship, but now I'll start with the actual model development, starting with simply Disease status based on Age. These models will use the heart_3 data set, constructed with Heart Disease as factor variable.
+
+```{r}
+#glm fit based on Age as the only predictor
+glmFit1 <- glm(Heart_Disease ~ Age, data = heartTrain, method = "glm",
+  control = trctrl,
+  preProcess = c("center", "scale"))
+```
+> Model 2:
+
+```{r}
+#glm fit based on Age & Cholesterol as predictors, as well as their
+#interaction effects.
+glmFit2 <- glm(formula = Heart_Disease ~ Age*Cholesterol,
+               data = heart_3,
+               family = "binomial")
+summary(glmFit2)
+```
+
+> Model 3:
+
+```{r}
+#glm fit based on Age, Cholesterol, and Sex as predictors
+glmFit3 <- glm(formula = Heart_Disease ~ Age + Cholesterol + Sex,
+               data = heart_3,
+               family = "binomial")
+summary(glmFit3)
+
+```
+
+#### Predicting and Analyzing model results
+
+> I'll use the method used in the "Fitting using kNN" section above to predict responses based on the logistic regression models above. I'll also use the method of cross-validation used to get an "average" response outcome.
+
+```{r}
+glm1_fit <- train(Heart_Disease ~., data = heartTrain, method = "knn",
+ trControl=trctrl,
+ preProcess = c("center", "scale"),
+ tuneLength = 10)
+```
+
