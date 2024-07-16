@@ -18,7 +18,7 @@ editor: visual
 > Simply put, a General Linear Model is a linear regression model, which is used for samples with normal distributions and can use simple linear regression, or multiple linear regression.
 
 ### Question 4: When fitting a multiple linear regression model, what does adding an interaction term do? That is, what does it allow the model to do differently as compared to when it is not included in the model?
-> An interaction term puts a limit on the values which can be attainable by the linear coefficients. Including an interaction team helps to identify which variable contributes most to variability.
+> An interaction term accounts for the effect of a predictor on the response in the presence of another particular predictor. For example, cholesterol may be seen to have a certain linear relationship to Heart Disease status, but that linear relationship may have a higher or lower slope based on if the predictors are Male or Female. In that sense, an interaction between Sex & Cholesterol would represent this relationship.
 
 ### Question 5: Why do we split our data into a training and test set?
 > If using the same data for both test & training, there is a risk of overtraining the underlying data, or fitting the model too perfectly to the explicit data set used to train. A separate test set is helpful in reducing a metric for error when predicting based on any dataset, not just the given set.
@@ -295,12 +295,6 @@ summary(glmFit3)
                   tuneLength = 10))
 ```
 
-> Summary - a warning that this result also appears to include the entire underlying function code, which is far too much information, but I need the summary information included in the latter 25% of this output to evaluate models.
-
-```{r}
-summary(treeFit1, verbose = FALSE)
-```
-
 #### Tree Model 2:
 
 ```{r, warning=FALSE, message=FALSE}
@@ -311,12 +305,6 @@ summary(treeFit1, verbose = FALSE)
                   preProcess = c("center", "scale"),
                   tuneGrid = data.frame(mtry = c(1:10)),
                   tuneLength = 10))
-```
-
-> Summary
-
-```{r}
-summary(treeFit2)
 ```
 
 #### Tree Model 3:
@@ -335,12 +323,36 @@ summary(treeFit2)
                   verbose = FALSE))
 ```
 
-> Summary
-
-```{r}
-summary(treeFit3)
-```
-
 #### Predicting and Analyzing Model Results
 
-> 
+> We will use the confusionMatrix() function to asess accuray for each of the 3 Tree Models fitted above.
+
+```{r}
+#For Tree Model 1: Classification Tree Model
+(confusionMatrix(treeFit1, newdata = heartTest2))
+```
+
+```{r}
+#For Tree Model 2: Random Forest
+(confusionMatrix(treeFit2, newdata = heartTest2))
+```
+
+```{r}
+#For Tree Model 3: Boosted Tree
+(confusionMatrix(treeFit3, newdata=heartTest2))
+```
+
+> The results from the above assessments give the following:
+
+> Classification Tree (Sex, ChestPainType, and interaction effects)
+> Accuracy: 0.761
+
+> Random Forest (Resting BP & Resting ECG)
+> Accuracy: 0.5551
+
+> Boosted Tree (Age, Sex, Resting BP, and interaction effects)
+> Accuracy: 0.6801
+
+### Wrap Up
+
+> Given the accuracy measurements of all preceding models, the model with the highest accuracy when acting on the test set is the Classification Tree model with Sex, ChestPainType, and their interaction effects. With a model accuracy of 0.761.
