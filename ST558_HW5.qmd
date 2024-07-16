@@ -32,6 +32,8 @@ editor: visual
 ```{r, warning=FALSE, message=FALSE}
 library(tidyverse)
 library(caret)
+library(randomForest)
+library(gbm)
 ```
 
 
@@ -197,41 +199,148 @@ ggplot(distSum, aes(x=Age, y=propDisease, size = n)) +
 > It does seem like there's somewhat of a linear relationship, but now I'll start with the actual model development, starting with simply Disease status based on Age. These models will use the heart_3 data set, constructed with Heart Disease as factor variable.
 
 ```{r}
-#glm fit based on Age as the only predictor
-glmFit1 <- glm(Heart_Disease ~ Age, data = heartTrain, method = "glm",
-  control = trctrl,
-  preProcess = c("center", "scale"))
+#Create a train & test data set from the heart_3 set
+#Set the seed so random number generation can be replicated.
+set.seed(90)
+train2Index <- createDataPartition(heart_3$Heart_Disease, p = 0.7, list = FALSE)
+heartTrain2 <- heart_3[trainIndex, ]
+heartTest2 <- heart_3[-trainIndex, ]
+
 ```
-> Model 2:
+
+#### Model 1:
+
+```{r}
+#glm fit based on Age as the only predictor
+(glmFit1 <- train(Heart_Disease ~ Age,
+                 data = heartTrain2,
+                 method = "glm",
+                 trControl=trctrl,
+                 family = "binomial"))
+```
+
+> summary
+
+```{r}
+summary(glmFit1)
+```
+
+#### Model 2:
 
 ```{r}
 #glm fit based on Age & Cholesterol as predictors, as well as their
 #interaction effects.
-glmFit2 <- glm(formula = Heart_Disease ~ Age*Cholesterol,
-               data = heart_3,
-               family = "binomial")
+(glmFit2 <- train(Heart_Disease ~ Age*Cholesterol,
+                 data = heartTrain,
+                 method = "glm",
+                 trControl=trctrl,
+                 family = "binomial"))
+```
+
+> Summary
+
+```{r}
 summary(glmFit2)
 ```
 
-> Model 3:
+#### Model 3:
 
 ```{r}
 #glm fit based on Age, Cholesterol, and Sex as predictors
-glmFit3 <- glm(formula = Heart_Disease ~ Age + Cholesterol + Sex,
-               data = heart_3,
-               family = "binomial")
-summary(glmFit3)
+(glmFit3 <- train(Heart_Disease ~ Age + Cholesterol + Sex,
+                 data = heartTrain,
+                 method = "glm",
+                 trControl=trctrl,
+                 family = "binomial"))
 
 ```
+
+> Summary
+
+```{r}
+summary(glmFit3)
+```
+> The models have AIC values:
+> Model 1 AIC = 686.25
+> Model 2 AIC = 671.25
+> Model 3 AIC = 616.53
+
+> Of the models selected, the 3rd model has the lowest AIC and the best fit
 
 #### Predicting and Analyzing model results
 
 > I'll use the method used in the "Fitting using kNN" section above to predict responses based on the logistic regression models above. I'll also use the method of cross-validation used to get an "average" response outcome.
 
 ```{r}
-glm1_fit <- train(Heart_Disease ~., data = heartTrain, method = "knn",
- trControl=trctrl,
- preProcess = c("center", "scale"),
- tuneLength = 10)
+(confusionMatrix(glmFit3, newdata = heartTest2))
 ```
 
+### Tree Models
+
+> Similar to the above sequence, I will experiment with various tree models and determine which one of the three is the best model/fit.
+
+> Model 1: Sex & Chest Pain Type
+> Model 2: Resting BP & Resting ECG
+> Model 3: Age, Sex, Resting BP, and interaction effects
+
+#### Tree Model 1:
+
+```{r}
+(treeFit1 <- train(Heart_Disease ~ Sex*ChestPainType,
+                  data = heartTrain2,
+                  method = "rpart",
+                  trControl=trctrl,
+                  preProcess = c("center", "scale"),
+                  tuneGrid = data.frame(cp = seq(0, 0.1, by = 0.001)),
+                  tuneLength = 10))
+```
+
+> Summary - a warning that this result also appears to include the entire underlying function code, which is far too much information, but I need the summary information included in the latter 25% of this output to evaluate models.
+
+```{r}
+summary(treeFit1, verbose = FALSE)
+```
+
+#### Tree Model 2:
+
+```{r, warning=FALSE, message=FALSE}
+(treeFit2 <- train(Heart_Disease ~ RestingBP + RestingECG,
+                  data = heartTrain2,
+                  method = "rf",
+                  trControl=trctrl,
+                  preProcess = c("center", "scale"),
+                  tuneGrid = data.frame(mtry = c(1:10)),
+                  tuneLength = 10))
+```
+
+> Summary
+
+```{r}
+summary(treeFit2)
+```
+
+#### Tree Model 3:
+
+```{r}
+(treeFit3 <- train(Heart_Disease ~ Age*Sex*RestingBP,
+                  data = heartTrain2,
+                  method = "gbm",
+                  trControl=trctrl,
+                  preProcess = c("center", "scale"),
+                  tuneGrid = expand.grid(n.trees = c(25, 50, 100, 200),
+                                        interaction.depth = c(1, 2, 3),
+                                        shrinkage = c(0.1),
+                                        n.minobsinnode = c(10)),
+                  tuneLength = 10,
+                  verbose = FALSE))
+```
+
+> Summary
+
+```{r}
+summary(treeFit3)
+```
+
+#### Predicting and Analyzing Model Results
+
+> 
